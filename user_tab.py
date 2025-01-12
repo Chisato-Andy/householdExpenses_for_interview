@@ -11,10 +11,10 @@ DB_CONFIG = {
     "database": "householdexpenses"    # 使用するデータベース名
 }
 
-# ユーザー追加タブ作成用関数
+# ユーザー登録タブ作成用関数
 def create_user_tab(notebook):
     tab = ttk.Frame(notebook) #　新しいタブ作成
-    notebook.add(tab, text="ユーザー追加") #引数の　notebook を利用
+    notebook.add(tab, text="ユーザー登録") #引数の　notebook を利用
 
     tab.columnconfigure(0, weight=1)
     tab.columnconfigure(1, weight=1)
@@ -34,7 +34,6 @@ def create_user_tab(notebook):
 
         connection = None
         cursor = None
-
         try:
             # データベース接続
             connection = mysql.connector.connect(**DB_CONFIG)
@@ -55,7 +54,7 @@ def create_user_tab(notebook):
                 connection.close()
 
 
-    tk.Button(tab, text="ユーザー追加", command=add_user).grid(row=3, column=0, columnspan=2, pady=10) # add_userをボタン押下時に呼び出し
+    tk.Button(tab, text="ユーザー登録", command=add_user).grid(row=3, column=0, columnspan=2, pady=10) # add_userをボタン押下時に呼び出し
 
     # ユーザ一覧
     treeview = ttk.Treeview(tab, columns=("ID", "ユーザー名"), show="headings")
