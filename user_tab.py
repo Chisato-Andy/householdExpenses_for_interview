@@ -54,12 +54,14 @@ def create_user_tab(notebook):
                 connection.close()
 
 
-    tk.Button(tab, text="ユーザー登録", command=add_user).grid(row=3, column=0, columnspan=2, pady=10) # add_userをボタン押下時に呼び出し
+    tk.Button(tab, text="ユーザー登録", command=add_user).grid(row=3, column=0, columnspan=2, pady=10)
 
     # ユーザ一覧
     treeview = ttk.Treeview(tab, columns=("ID", "ユーザー名"), show="headings")
     treeview.heading("ID", text="ID")
     treeview.heading("ユーザー名", text="ユーザー名")
+    treeview.column("ID", width=100, anchor="center")
+    treeview.column("ユーザー名", width=150, anchor="center")
     treeview.grid(row=4, column=0, columnspan=2, pady=10)
 
     def update_user_list():

@@ -60,6 +60,8 @@ def create_payment_tab(notebook):
     treeview = ttk.Treeview(tab, columns=("ID", "支払方法"), show="headings")
     treeview.heading("ID", text="ID")
     treeview.heading("支払方法", text="支払方法")
+    treeview.column("ID", width=100, anchor="center")
+    treeview.column("支払方法", width=150, anchor="center")
     treeview.grid(row=4, column=0, columnspan=2, pady=10)
 
     def update_payment_list():

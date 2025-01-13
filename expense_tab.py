@@ -121,6 +121,9 @@ def create_expense_tab(notebook):
     treeview.heading("ID", text="ID")
     treeview.heading("固定費/変動費", text="固定費/変動費")
     treeview.heading("項目名", text="項目名")
+    treeview.column("ID", width=100, anchor="center")
+    treeview.column("固定費/変動費", width=150, anchor="center")
+    treeview.column("項目名", width=150, anchor="center")
     treeview.grid(row=5, column=0, columnspan=2, pady=10)
 
     update_expense_list(treeview, cost_types)
