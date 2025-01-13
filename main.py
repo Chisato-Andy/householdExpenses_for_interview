@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from item_tab import create_item_tab
+from wallet_tab import create_wallet_tab
+from list_tab import create_list_tab
 from expense_tab import create_expense_tab
 from payment_tab import create_payment_tab
 from personal_notes_tab import create_personal_notes_tab
@@ -19,6 +21,8 @@ def main():
 
     # 各タブを作成
     create_item_tab(notebook)
+    create_wallet_tab(notebook)
+    create_list_tab(notebook)
     create_expense_tab(notebook)
     create_payment_tab(notebook)
     create_personal_notes_tab(notebook)
