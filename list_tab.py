@@ -76,7 +76,7 @@ def create_list_tab(notebook):
     treeview.column("費用区分", width=100, anchor="center")
     treeview.column("収支項目", width=100, anchor="center")
     treeview.column("支払方法", width=100, anchor="center")
-    treeview.column("値", width=80, anchor="e")
+    treeview.column("値", width=80, anchor="center")
     treeview.column("メモ", width=200, anchor="center")
     treeview.grid(row=5, column=0, columnspan=2, pady=10, sticky="nsew")
 
@@ -157,16 +157,20 @@ def create_list_tab(notebook):
     def display_child_treeview(parent_item):
         """選択された行の真下に子リストを表示"""
         # 親アイテム情報を取得
-        item_data = sum_treeview.item(parent_item)["values"]
+        item_data = sum_treeview.item(parent_item)["values"] # 押下した行のデータを取得
         if not item_data:
             return
-        expense_name = item_data[0]  # 費用区分
+        expense_name = item_data[0]  # 収支区分
+
+        # 年と月をドロップダウンから取得
+        selected_year = year_combobox.get()
+        selected_month = month_combobox.get()
 
         # 子リストがすでに展開されている場合は削除
         if expanded_rows.get(parent_item):
             for child_item in expanded_rows[parent_item]:
-                sum_treeview.delete(child_item)
-            del expanded_rows[parent_item]
+                sum_treeview.delete(child_item) # 子リストの1行ずつを削除
+            del expanded_rows[parent_item] # 子リストを表示してる本リストの行情報を削除
             return
 
         # データベース接続
@@ -183,10 +187,12 @@ def create_list_tab(notebook):
                 LEFT JOIN expense e ON i.expense_id = e.expense_id
                 LEFT JOIN paymentType pt ON i.paymentType_id = pt.paymentType_id
                 WHERE e.expense_name = %s
+                AND YEAR(i.item_date) = %s
+                AND MONTH(i.item_date) = %s
                 GROUP BY pt.paymentType_id
                 ORDER BY pt.paymentType_id ASC;
             """
-            cursor.execute(payment_query, (expense_name,))
+            cursor.execute(payment_query, (expense_name, selected_year, selected_month))
             payment_totals = cursor.fetchall()
 
             # 子リストを追加
@@ -194,13 +200,13 @@ def create_list_tab(notebook):
             for payment_method, total_value in payment_totals:
                 child_item = sum_treeview.insert(
                     parent_item,
-                    "end",
+                    "end", # "end"は「親アイテムの最後」に挿入することを意味
                     values=(payment_method, total_value),
                     tags=("child",)
                 )
                 child_items.append(child_item)
 
-            # 展開された子アイテムを記録
+            # 展開された子アイテムを記録(展開されている子リストの情報を追加)
             expanded_rows[parent_item] = child_items
             sum_treeview.tag_configure("child", background="#F0F8FF")
 
@@ -213,7 +219,7 @@ def create_list_tab(notebook):
 
     def on_row_click(event):
         """行クリック時の処理"""
-        selected_item = sum_treeview.selection()
+        selected_item = sum_treeview.selection() # 選択されている要素を返す
         if not selected_item:
             return
         display_child_treeview(selected_item[0])
