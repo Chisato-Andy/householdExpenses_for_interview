@@ -50,5 +50,7 @@ def create_wallet_tab(notebook):
                 cursor.close()
                 connection.close()
 
+    tk.Button(tab, text="更新", command=update_user_list).grid(row=5, column=0, columnspan=2, pady=10)
+
     update_user_list()
     return tab
