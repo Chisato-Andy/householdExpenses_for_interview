@@ -127,7 +127,7 @@ def create_item_tab(notebook):
     # 入力フィールドのリセット
     def reset_fields():
         user_var.set("")
-        budget_var.set("")
+        #budget_var.set("")
         expense_var.set("")
         payment_type_var.set("")
         value_entry.delete(0, tk.END)
