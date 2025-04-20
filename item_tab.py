@@ -149,9 +149,9 @@ def create_item_tab(notebook):
 
         today = datetime.today().date()
         selected_item_date_obj = datetime.strptime(selected_item_date, "%Y/%m/%d").date()
-        if selected_item_date_obj > today:
-            messagebox.showerror("エラー", "選択された日付は今日より未来の日付です。")
-            return
+        #if selected_item_date_obj > today:
+        #    messagebox.showerror("エラー", "選択された日付は今日より未来の日付です。")
+        #    return
 
         try:
             item_value = int(item_value)
