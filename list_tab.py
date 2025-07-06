@@ -3,6 +3,7 @@ from tkinter import ttk
 from tkinter import messagebox
 import mysql.connector
 from datetime import datetime
+from tkcalendar import DateEntry
 
 # データベース接続情報
 DB_CONFIG = {
@@ -19,6 +20,10 @@ def create_list_tab(notebook):
 
     tab.columnconfigure(0, weight=1)
     tab.columnconfigure(1, weight=1)
+
+    tree_menu = tk.Menu(tab, tearoff=0)
+    tree_menu.add_command(label="編集", command=lambda: edit_selected_item())
+    tree_menu.add_command(label="削除", command=lambda: delete_selected_item())
 
     # 年を選択するドロップダウンを作成
     tk.Label(tab, text="年:").grid(row=3, column=0, sticky="w", padx=(100, 0), pady=(10, 0))
@@ -122,7 +127,7 @@ def create_list_tab(notebook):
             connection = mysql.connector.connect(**DB_CONFIG)
             cursor = connection.cursor()
             # 詳細用
-            list_query = """SELECT i.item_date, b.budget_type, ct.costType_name, e.expense_name, pt.paymentType_method, i.item_value, i.item_memo FROM item i
+            list_query = """SELECT i.item_id, i.item_date, b.budget_type, ct.costType_name, e.expense_name, pt.paymentType_method, i.item_value, i.item_memo FROM item i
                     LEFT JOIN budget b ON i.budget_id = b.budget_id
                     LEFT JOIN expense e ON i.expense_id = e.expense_id
                     LEFT JOIN costType ct ON e.costType_id = ct.costType_id
@@ -131,7 +136,7 @@ def create_list_tab(notebook):
             cursor.execute(list_query, (user_id, selected_year, selected_month))
             items = cursor.fetchall()
             for item in items:
-                treeview.insert("", tk.END, values=item)
+                treeview.insert("", tk.END, iid=item[0], values=item[1:])
 
             # 合計用
             sum_query = """SELECT e.expense_name, SUM(i.item_value) AS total_value 
@@ -251,9 +256,195 @@ def create_list_tab(notebook):
                 cursor.close()
                 connection.close()
 
+    def on_tree_right_click(event):
+        selected_item = treeview.identify_row(event.y)
+        if selected_item:
+            treeview.selection_set(selected_item)
+            tree_menu.post(event.x_root, event.y_root)
+
+    def edit_selected_item():
+        selected = treeview.selection()
+        if not selected:
+            return
+
+        item_id = selected[0]
+        values = treeview.item(item_id, "values")
+
+        edit_window = tk.Toplevel()
+        edit_window.title("詳細の編集")
+
+        # ===== データ取得 =====
+        budget_values = get_data("SELECT budget_id, budget_type FROM budget")
+        cost_type_values = get_data("SELECT costType_id, costType_name FROM costType")
+        expense_origin_values = get_data("SELECT expense_id, expense_name, costType_id FROM expense")
+        payment_type_values = get_data("SELECT paymentType_id, paymentType_method FROM paymentType")
+
+        # ===== 変数の定義 =====
+        field_vars = [tk.StringVar(value=val) for val in values]  # 各項目の初期値を入れる
+        widgets = []
+
+        # ===== 0: 日付 =====
+        tk.Label(edit_window, text="日付").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        date_entry = DateEntry(edit_window, width=40, date_pattern="yyyy/mm/dd")
+        date_entry.set_date(values[0])
+        date_entry.grid(row=0, column=1, padx=10, pady=5)
+        widgets.append(date_entry)
+
+        # ===== 1: 収支区分（Combobox）=====
+        tk.Label(edit_window, text="収支区分").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        budget_cb = ttk.Combobox(edit_window, textvariable=field_vars[1],
+                                 values=[b[1] for b in budget_values], state="readonly", width=37)
+        budget_cb.grid(row=1, column=1, padx=10, pady=5)
+        widgets.append(budget_cb)
+
+        # ===== 2: 費用区分（Combobox）=====
+        tk.Label(edit_window, text="費用区分").grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        cost_cb = ttk.Combobox(edit_window, textvariable=field_vars[2],
+                               values=[c[1] for c in cost_type_values], state="readonly", width=37)
+        cost_cb.grid(row=2, column=1, padx=10, pady=5)
+        widgets.append(cost_cb)
+
+        # ===== 3: 収支項目（費用区分に依存）=====
+        tk.Label(edit_window, text="収支項目").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        expense_cb = ttk.Combobox(edit_window, textvariable=field_vars[3], state="readonly", width=37)
+        expense_cb.grid(row=3, column=1, padx=10, pady=5)
+        widgets.append(expense_cb)
+
+        def update_expense_options(*args):
+            selected_cost_name = cost_cb.get()
+            selected_cost_id = next((c[0] for c in cost_type_values if c[1] == selected_cost_name), None)
+            if selected_cost_id:
+                filtered_expenses = [e[1] for e in expense_origin_values if e[2] == selected_cost_id]
+                expense_cb['values'] = filtered_expenses
+                if filtered_expenses:
+                    field_vars[3].set(filtered_expenses[0])  # 先頭を初期選択
+
+        cost_cb.bind("<<ComboboxSelected>>", update_expense_options)
+        update_expense_options()
+
+        # ===== 4: 支払方法 =====
+        tk.Label(edit_window, text="支払方法").grid(row=4, column=0, padx=10, pady=5, sticky="w")
+        payment_cb = ttk.Combobox(edit_window, textvariable=field_vars[4],
+                                  values=[p[1] for p in payment_type_values], state="readonly", width=37)
+        payment_cb.grid(row=4, column=1, padx=10, pady=5)
+        widgets.append(payment_cb)
+
+        # ===== 5: 値 =====
+        tk.Label(edit_window, text="値").grid(row=5, column=0, padx=10, pady=5, sticky="w")
+        value_entry = tk.Entry(edit_window, width=40)
+        value_entry.insert(0, values[5])
+        value_entry.grid(row=5, column=1, padx=10, pady=5)
+        widgets.append(value_entry)
+
+        # ===== 6: メモ =====
+        tk.Label(edit_window, text="メモ").grid(row=6, column=0, padx=10, pady=5, sticky="w")
+        memo_entry = tk.Entry(edit_window, width=40)
+        memo_entry.insert(0, values[6])
+        memo_entry.grid(row=6, column=1, padx=10, pady=5)
+        widgets.append(memo_entry)
+
+        # ===== 保存ボタン処理 =====
+        def save_changes():
+            new_date = date_entry.get()
+            new_budget = budget_cb.get()
+            new_cost = cost_cb.get()
+            new_expense = expense_cb.get()
+            new_payment = payment_cb.get()
+            new_value = value_entry.get()
+            new_memo = memo_entry.get()
+
+            # 各種IDへ変換
+            budget_id = next((b[0] for b in budget_values if b[1] == new_budget), None)
+            cost_type_id = next((c[0] for c in cost_type_values if c[1] == new_cost), None)
+            expense_id = next((e[0] for e in expense_origin_values if e[1] == new_expense), None)
+            payment_id = next((p[0] for p in payment_type_values if p[1] == new_payment), None)
+
+            connection = None
+            cursor = None
+
+            try:
+                connection = mysql.connector.connect(**DB_CONFIG)
+                cursor = connection.cursor()
+
+                update_query = """
+                    UPDATE item
+                    SET item_date = %s,
+                        budget_id = %s,
+                        expense_id = %s,
+                        paymentType_id = %s,
+                        item_value = %s,
+                        item_memo = %s
+                    WHERE item_id = %s
+                """
+                cursor.execute(update_query, (
+                    new_date, budget_id, expense_id, payment_id, new_value, new_memo, item_id
+                ))
+                connection.commit()
+
+                # Treeviewの表示更新（文字列値で更新）
+                treeview.item(item_id,
+                              values=(new_date, new_budget, new_cost, new_expense, new_payment, new_value, new_memo))
+                messagebox.showinfo("保存", "変更を保存しました")
+                edit_window.destroy()
+                filter_items()  # 編集後に合計も更新
+
+            except mysql.connector.Error as err:
+                messagebox.showerror("エラー", f"DB更新失敗: {err}")
+            finally:
+                if connection.is_connected():
+                    cursor.close()
+                    connection.close()
+
+        tk.Button(edit_window, text="保存", command=save_changes).grid(row=7, column=0, columnspan=2, pady=10)
+
+    def delete_selected_item():
+        selected = treeview.selection()
+        if not selected:
+            return
+
+        item_id = selected[0]
+
+        confirm = messagebox.askyesno("確認", "このレコードを削除しますか？")
+        if not confirm:
+            return
+
+        connection = None
+        cursor = None
+        try:
+            connection = mysql.connector.connect(**DB_CONFIG)
+            cursor = connection.cursor()
+            delete_query = "DELETE FROM item WHERE item_id = %s"
+            cursor.execute(delete_query, (item_id,))
+            connection.commit()
+
+            # ツリービューから削除
+            treeview.delete(item_id)
+
+            messagebox.showinfo("削除", "レコードを削除しました")
+
+            filter_items()
+
+        except mysql.connector.Error as err:
+            messagebox.showerror("エラー", f"DB削除失敗: {err}")
+        finally:
+            if connection and connection.is_connected():
+                cursor.close()
+                connection.close()
+
     tk.Button(tab, text="検索", command=filter_items).grid(row=3, column=0, columnspan=2, padx=(630, 0), pady=(10, 0))
 
     # 合計欄の行が押下されたときのイベントをバインド
     sum_treeview.bind("<ButtonRelease-1>", on_row_click)
+    treeview.bind("<Button-3>", on_tree_right_click)
 
     return tab
+
+# 共通で使える関数（ファイルの先頭などに置いてOK）
+def get_data(query):
+    connection = mysql.connector.connect(**DB_CONFIG)
+    cursor = connection.cursor()
+    cursor.execute(query)
+    data = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return data
