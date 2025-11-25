@@ -97,8 +97,12 @@ def create_list_tab(notebook):
     expanded_rows = {}  # 押下された行の状態を管理
 
     # 月全体の合計値表示用ラベル
-    month_total_label = tk.Label(tab, text="月全体の合計: ¥0", font=("Arial", 10), anchor="w")
+    month_total_label = tk.Label(tab, text="", font=("Arial", 10), anchor="w", justify="left")
     month_total_label.grid(row=9, column=0, columnspan=2, pady=(10, 0), sticky="w", padx=10)
+
+    # 収支（収入－支出）表示用ラベル
+    month_balance_label = tk.Label(tab, text="", font=("Arial", 10), anchor="w", justify="left")
+    month_balance_label.grid(row=10, column=0, columnspan=2, pady=(5, 0), sticky="w", padx=10)
 
     def filter_items():
         selected_year = year_combobox.get()
@@ -237,18 +241,40 @@ def create_list_tab(notebook):
             connection = mysql.connector.connect(**DB_CONFIG)
             cursor = connection.cursor()
 
-            # 月全体の合計値を取得するクエリ
+            # 収支区分ごとに合計（収入 / 支出）
             total_query = """
-                SELECT SUM(i.item_value) AS month_total
+                SELECT b.budget_type, SUM(i.item_value)
                 FROM item i
+                LEFT JOIN budget b ON i.budget_id = b.budget_id
                 WHERE i.user_id = %s AND YEAR(i.item_date) = %s AND MONTH(i.item_date) = %s
+                GROUP BY b.budget_type
             """
             cursor.execute(total_query, (user_id, year, month))
-            result = cursor.fetchone()
-            month_total = result[0] if result[0] else 0
+            results = cursor.fetchall()
+
+            text_lines = []
+            income_total = 0
+            expense_total = 0
+            for budget_type, total_value in results:
+                total_value = total_value if total_value else 0
+                text_lines.append(f"{budget_type}の合計: ¥{total_value:,}")
+
+                if budget_type == "収入":
+                    income_total = total_value or 0
+                elif budget_type == "支出":
+                    expense_total = total_value or 0
+
+            # 全体合計
+            month_total = sum(r[1] for r in results if r[1])
+            text_lines.append(f"月全体の合計: ¥{month_total:,}")
+
+            # ▼ 収支（収入 - 支出）
+            balance = income_total - expense_total
 
             # ラベルに表示を更新
-            month_total_label.config(text=f"月全体の合計: ¥{month_total:,}")
+            month_total_label.config(text="\n".join(text_lines))
+            month_balance_label.config(text=f"収支（収入 - 支出）: ¥{balance:,}")
+
         except mysql.connector.Error as err:
             messagebox.showerror("エラー", f"データベースエラー: {err}")
         finally:
