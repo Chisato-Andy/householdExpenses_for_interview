@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import mysql.connector
+import subprocess
+import platform
 
 # データベース接続情報
 DB_CONFIG = {
@@ -50,7 +52,20 @@ def create_wallet_tab(notebook):
                 cursor.close()
                 connection.close()
 
+    # ▶ 電卓を起動する関数
+    def open_calculator():
+        os_name = platform.system()
+
+        try:
+            if os_name == "Windows":
+                subprocess.Popen(["calc.exe"])
+        except Exception as e:
+            messagebox.showerror("エラー", f"電卓を起動できませんでした: {e}")
+
     tk.Button(tab, text="更新", command=update_user_list).grid(row=5, column=0, columnspan=2, pady=10)
+
+    # ▶ 電卓ボタン（追加）
+    tk.Button(tab, text="電卓", command=open_calculator).grid(row=5, column=1, pady=10)
 
     update_user_list()
     return tab
