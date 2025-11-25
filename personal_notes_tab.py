@@ -17,6 +17,7 @@ def create_personal_notes_tab(notebook):
         try:
             with open(filepath, "r", encoding="utf-8") as file:
                 md_content = file.read()
+                text_widget.config(state="normal")
                 text_widget.delete("1.0", tk.END)
                 text_widget.insert(tk.END, md_content)
                 text_widget.config(state="disabled")
